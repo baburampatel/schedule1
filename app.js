@@ -9,6 +9,10 @@ const AppState = {
     draggedElement: null,
     draggedData: null,
     
+    // UI Preferences
+    theme: localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'),
+    compactMode: localStorage.getItem('compactMode') === 'true',
+
     // Sample data from JSON
     sampleData: {
         courses: [
@@ -100,13 +104,13 @@ function showToast(message, type = 'info') {
 function showLoading(message = 'Processing...') {
     const modal = document.getElementById('loading-modal');
     const messageEl = document.getElementById('loading-message');
-    messageEl.textContent = message;
-    modal.classList.remove('hidden');
+    if (messageEl) messageEl.textContent = message;
+    if (modal) modal.classList.remove('hidden');
 }
 
 function hideLoading() {
     const modal = document.getElementById('loading-modal');
-    modal.classList.add('hidden');
+    if (modal) modal.classList.add('hidden');
 }
 
 function updateTabState() {
@@ -138,6 +142,111 @@ function updateTabState() {
         exportTab.style.opacity = '0.6';
         editorTab.style.opacity = '0.6';
     }
+}
+
+// UI Initialization
+function initUI() {
+    // Apply initial theme
+    document.documentElement.setAttribute('data-theme', AppState.theme);
+    const themeIcon = document.querySelector('#theme-toggle .icon');
+    if (themeIcon) {
+        themeIcon.textContent = AppState.theme === 'dark' ? '☀️' : '🌙';
+    }
+
+    // Apply compact mode
+    if (AppState.compactMode) {
+        document.body.classList.add('compact-mode');
+        const compactBtn = document.getElementById('compact-mode-toggle');
+        if (compactBtn) {
+            compactBtn.classList.add('btn--primary');
+            compactBtn.classList.remove('btn--outline');
+        }
+    }
+
+    // Theme Toggle Handler
+    document.getElementById('theme-toggle')?.addEventListener('click', () => {
+        AppState.theme = AppState.theme === 'light' ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', AppState.theme);
+        localStorage.setItem('theme', AppState.theme);
+
+        const themeIcon = document.querySelector('#theme-toggle .icon');
+        if (themeIcon) {
+            themeIcon.textContent = AppState.theme === 'dark' ? '☀️' : '🌙';
+        }
+
+        // Re-render charts to update colors
+        if (AppState.currentTab === 'visualize') {
+            initCharts();
+        }
+    });
+
+    // Compact Mode Toggle Handler
+    document.getElementById('compact-mode-toggle')?.addEventListener('click', (e) => {
+        AppState.compactMode = !AppState.compactMode;
+        document.body.classList.toggle('compact-mode', AppState.compactMode);
+        localStorage.setItem('compactMode', AppState.compactMode);
+
+        e.target.classList.toggle('btn--primary');
+        e.target.classList.toggle('btn--outline');
+    });
+
+    // Keyboard Shortcuts Logic
+    document.getElementById('shortcuts-toggle')?.addEventListener('click', () => {
+        document.getElementById('shortcuts-modal').classList.remove('hidden');
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === '?' && !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+            document.getElementById('shortcuts-modal').classList.toggle('hidden');
+        }
+        if (e.key === 'Escape') {
+            document.querySelectorAll('.modal').forEach(m => m.classList.add('hidden'));
+        }
+        if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+            e.preventDefault();
+            undoEdit();
+        }
+        if (e.key.toLowerCase() === 't' && !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+            document.getElementById('theme-toggle').click();
+        }
+    });
+
+    // Quick Filters
+    document.querySelectorAll('.quick-filters .btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            document.querySelectorAll('.quick-filters .btn').forEach(b => b.classList.remove('active'));
+            e.target.classList.add('active');
+
+            const filter = e.target.dataset.filter.toLowerCase();
+            const rows = document.querySelectorAll('#room-timetable-body tr');
+
+            rows.forEach(row => {
+                const sessions = row.querySelectorAll('.occupied-slot');
+                let hasMatch = false;
+                if (filter === 'all') hasMatch = true;
+                else {
+                    sessions.forEach(s => {
+                        if (s.classList.contains(filter.toLowerCase()) ||
+                            s.textContent.toLowerCase().includes(filter)) {
+                            hasMatch = true;
+                        }
+                    });
+                }
+
+                // If it's a row with content, toggle visibility based on match.
+                // Simple implementation: fade out non-matching sessions
+                sessions.forEach(s => {
+                   if (filter === 'all') {
+                       s.style.opacity = '1';
+                   } else {
+                       const match = s.classList.contains(filter.toLowerCase()) || s.textContent.toLowerCase().includes(filter);
+                       s.style.opacity = match ? '1' : '0.1';
+                   }
+                });
+            });
+            showToast(`Filter applied: ${e.target.textContent}`, 'info');
+        });
+    });
 }
 
 // Fixed Tab Navigation
@@ -479,12 +588,12 @@ function completeOptimization() {
     
     // Generate sample schedule data
     AppState.scheduleData = [
-        {"id": "1", "course_id": "CS101", "course_name": "Intro to Programming", "session": 1, "room_id": "R101", "time_slot": "MON_09_10:30", "instructor_id": "I001", "instructor_name": "Dr. Smith", "student_groups": ["G1", "G2"], "locked": false},
-        {"id": "2", "course_id": "CS101", "course_name": "Intro to Programming", "session": 2, "room_id": "R101", "time_slot": "WED_09_10:30", "instructor_id": "I001", "instructor_name": "Dr. Smith", "student_groups": ["G1", "G2"], "locked": false},
-        {"id": "3", "course_id": "CS101", "course_name": "Intro to Programming", "session": 3, "room_id": "R101", "time_slot": "FRI_09_10:30", "instructor_id": "I001", "instructor_name": "Dr. Smith", "student_groups": ["G1", "G2"], "locked": false},
-        {"id": "4", "course_id": "MATH201", "course_name": "Calculus II", "session": 1, "room_id": "R102", "time_slot": "TUE_11_12", "instructor_id": "I002", "instructor_name": "Prof. Johnson", "student_groups": ["G1", "G4"], "locked": false},
-        {"id": "5", "course_id": "MATH201", "course_name": "Calculus II", "session": 2, "room_id": "R102", "time_slot": "THU_11_12", "instructor_id": "I002", "instructor_name": "Prof. Johnson", "student_groups": ["G1", "G4"], "locked": false},
-        {"id": "6", "course_id": "PHYS301", "course_name": "Quantum Physics", "session": 1, "room_id": "LAB101", "time_slot": "MON_15_17", "instructor_id": "I003", "instructor_name": "Dr. Brown", "student_groups": ["G3"], "locked": false}
+        {"id": "1", "course_id": "CS101", "course_name": "Intro to Programming", "session": 1, "room_id": "R101", "time_slot": "MON_09_10:30", "instructor_id": "I001", "instructor_name": "Dr. Smith", "student_groups": ["G1", "G2"], "locked": false, "type": "cs"},
+        {"id": "2", "course_id": "CS101", "course_name": "Intro to Programming", "session": 2, "room_id": "R101", "time_slot": "WED_09_10:30", "instructor_id": "I001", "instructor_name": "Dr. Smith", "student_groups": ["G1", "G2"], "locked": false, "type": "cs"},
+        {"id": "3", "course_id": "CS101", "course_name": "Intro to Programming", "session": 3, "room_id": "R101", "time_slot": "FRI_09_10:30", "instructor_id": "I001", "instructor_name": "Dr. Smith", "student_groups": ["G1", "G2"], "locked": false, "type": "cs"},
+        {"id": "4", "course_id": "MATH201", "course_name": "Calculus II", "session": 1, "room_id": "R102", "time_slot": "TUE_11_12", "instructor_id": "I002", "instructor_name": "Prof. Johnson", "student_groups": ["G1", "G4"], "locked": false, "type": "math"},
+        {"id": "5", "course_id": "MATH201", "course_name": "Calculus II", "session": 2, "room_id": "R102", "time_slot": "THU_11_12", "instructor_id": "I002", "instructor_name": "Prof. Johnson", "student_groups": ["G1", "G4"], "locked": false, "type": "math"},
+        {"id": "6", "course_id": "PHYS301", "course_name": "Quantum Physics", "session": 1, "room_id": "LAB101", "time_slot": "MON_15_17", "instructor_id": "I003", "instructor_name": "Dr. Brown", "student_groups": ["G3"], "locked": false, "type": "physics"}
     ];
     
     // Update UI
@@ -596,14 +705,53 @@ function switchView(viewType) {
     }
 }
 
+function getThemeColor(colorVar) {
+    return getComputedStyle(document.documentElement).getPropertyValue(colorVar).trim();
+}
+
 function initCharts() {
+    // Get colors from CSS variables
+    const colors = [
+        getThemeColor('--chart-1'),
+        getThemeColor('--chart-2'),
+        getThemeColor('--chart-3'),
+        getThemeColor('--chart-4'),
+        '#64748B', // slate-500
+        '#EF4444', // red-500
+        '#22C55E'  // green-500
+    ];
+
+    const textColor = getThemeColor('--text-primary');
+
+    // Chart Options for Theming
+    const commonOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                labels: { color: textColor }
+            },
+            title: {
+                display: true,
+                color: textColor
+            }
+        },
+        scales: {
+            y: {
+                ticks: { color: textColor },
+                grid: { color: getThemeColor('--border-color') }
+            },
+            x: {
+                ticks: { color: textColor },
+                grid: { color: getThemeColor('--border-color') }
+            }
+        }
+    };
+
     // Room Utilization Chart
     const roomCtx = document.getElementById('room-utilization-chart');
     if (roomCtx && typeof Chart !== 'undefined') {
-        // Destroy existing chart if it exists
-        if (roomCtx.chart) {
-            roomCtx.chart.destroy();
-        }
+        if (roomCtx.chart) roomCtx.chart.destroy();
         
         roomCtx.chart = new Chart(roomCtx, {
             type: 'bar',
@@ -612,29 +760,14 @@ function initCharts() {
                 datasets: [{
                     label: 'Hours per Week',
                     data: [7.5, 2, 0, 0, 4, 0, 0],
-                    backgroundColor: ['#1FB8CD', '#FFC185', '#B4413C', '#ECEBD5', '#5D878F', '#DB4545', '#D2BA4C'],
-                    borderColor: ['#1FB8CD', '#FFC185', '#B4413C', '#ECEBD5', '#5D878F', '#DB4545', '#D2BA4C'],
+                    backgroundColor: colors,
+                    borderColor: colors,
                     borderWidth: 1
                 }]
             },
             options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    title: {
-                        display: true,
-                        text: 'Room Utilization per Week'
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        title: {
-                            display: true,
-                            text: 'Hours'
-                        }
-                    }
-                }
+                ...commonOptions,
+                plugins: { ...commonOptions.plugins, title: { ...commonOptions.plugins.title, text: 'Room Utilization per Week' } }
             }
         });
     }
@@ -642,33 +775,27 @@ function initCharts() {
     // Instructor Workload Chart
     const instructorCtx = document.getElementById('instructor-workload-chart');
     if (instructorCtx && typeof Chart !== 'undefined') {
-        // Destroy existing chart if it exists
-        if (instructorCtx.chart) {
-            instructorCtx.chart.destroy();
-        }
+        if (instructorCtx.chart) instructorCtx.chart.destroy();
         
+        const doughnutOptions = { ...commonOptions };
+        delete doughnutOptions.scales; // No scales for doughnut
+
         instructorCtx.chart = new Chart(instructorCtx, {
             type: 'doughnut',
             data: {
                 labels: ['Dr. Smith', 'Prof. Johnson', 'Dr. Brown', 'Available'],
                 datasets: [{
                     data: [4.5, 2, 4, 12.5],
-                    backgroundColor: ['#1FB8CD', '#FFC185', '#B4413C', '#ECEBD5'],
-                    borderColor: ['#1FB8CD', '#FFC185', '#B4413C', '#ECEBD5'],
+                    backgroundColor: [colors[0], colors[1], colors[2], getThemeColor('--bg-surface-raised')],
                     borderWidth: 1
                 }]
             },
             options: {
-                responsive: true,
-                maintainAspectRatio: false,
+                ...doughnutOptions,
                 plugins: {
-                    title: {
-                        display: true,
-                        text: 'Instructor Weekly Workload Distribution'
-                    },
-                    legend: {
-                        position: 'bottom'
-                    }
+                    ...doughnutOptions.plugins,
+                    title: { ...doughnutOptions.plugins.title, text: 'Instructor Weekly Workload Distribution' },
+                    legend: { position: 'bottom', labels: { color: textColor } }
                 }
             }
         });
@@ -684,11 +811,37 @@ function initExportTab() {
         ['export-json', exportJSON]
     ];
     
+    // Export Preview Modal Logic
+    let pendingExportAction = null;
+    const modal = document.getElementById('export-preview-modal');
+
     exportButtons.forEach(([id, handler]) => {
         const button = document.getElementById(id);
         if (button) {
-            button.addEventListener('click', handler);
+            button.addEventListener('click', () => {
+                if (!AppState.scheduleGenerated && id !== 'export-json') {
+                   // Allow JSON export of empty state maybe, but mostly block
+                }
+
+                // Show Preview Modal
+                document.getElementById('preview-total').textContent = AppState.scheduleData.length;
+                document.getElementById('preview-conflicts').textContent = AppState.currentMetrics.hardConflicts;
+
+                pendingExportAction = handler;
+                modal.classList.remove('hidden');
+            });
         }
+    });
+
+    document.getElementById('cancel-export').addEventListener('click', () => {
+        modal.classList.add('hidden');
+        pendingExportAction = null;
+    });
+
+    document.getElementById('confirm-export').addEventListener('click', () => {
+        if (pendingExportAction) pendingExportAction();
+        modal.classList.add('hidden');
+        pendingExportAction = null;
     });
 }
 
@@ -722,7 +875,6 @@ function exportICS() {
     
     AppState.scheduleData.forEach(session => {
         const [day, timeRange] = session.time_slot.split('_');
-        const [startTime, endTime] = timeRange.split('_');
         
         icsContent += 'BEGIN:VEVENT\n';
         icsContent += `SUMMARY:${session.course_name} - Session ${session.session}\n`;
@@ -780,12 +932,12 @@ function loadSampleSchedule() {
     setTimeout(() => {
         // Load the schedule data with conflicts
         AppState.scheduleData = [
-            {"id": "1", "course_id": "CS101", "course_name": "Intro to Programming", "session": 1, "room_id": "R101", "time_slot": "MON_09_10:30", "instructor_id": "I001", "instructor_name": "Dr. Smith", "student_groups": ["G1", "G2"], "locked": false},
-            {"id": "2", "course_id": "CS101", "course_name": "Intro to Programming", "session": 2, "room_id": "R101", "time_slot": "WED_09_10:30", "instructor_id": "I001", "instructor_name": "Dr. Smith", "student_groups": ["G1", "G2"], "locked": false},
-            {"id": "3", "course_id": "MATH201", "course_name": "Calculus II", "session": 1, "room_id": "R102", "time_slot": "MON_09_10:30", "instructor_id": "I001", "instructor_name": "Dr. Smith", "student_groups": ["G1", "G4"], "locked": false},
-            {"id": "4", "course_id": "MATH201", "course_name": "Calculus II", "session": 2, "room_id": "R102", "time_slot": "THU_11_12", "instructor_id": "I002", "instructor_name": "Prof. Johnson", "student_groups": ["G1", "G4"], "locked": false},
-            {"id": "5", "course_id": "PHYS301", "course_name": "Quantum Physics", "session": 1, "room_id": "LAB101", "time_slot": "MON_15_17", "instructor_id": "I003", "instructor_name": "Dr. Brown", "student_groups": ["G3"], "locked": false},
-            {"id": "6", "course_id": "PHYS301", "course_name": "Quantum Physics", "session": 2, "room_id": "R101", "time_slot": "WED_09_10:30", "instructor_id": "I003", "instructor_name": "Dr. Brown", "student_groups": ["G3"], "locked": false}
+            {"id": "1", "course_id": "CS101", "course_name": "Intro to Programming", "session": 1, "room_id": "R101", "time_slot": "MON_09_10:30", "instructor_id": "I001", "instructor_name": "Dr. Smith", "student_groups": ["G1", "G2"], "locked": false, "type": "cs"},
+            {"id": "2", "course_id": "CS101", "course_name": "Intro to Programming", "session": 2, "room_id": "R101", "time_slot": "WED_09_10:30", "instructor_id": "I001", "instructor_name": "Dr. Smith", "student_groups": ["G1", "G2"], "locked": false, "type": "cs"},
+            {"id": "3", "course_id": "MATH201", "course_name": "Calculus II", "session": 1, "room_id": "R102", "time_slot": "MON_09_10:30", "instructor_id": "I001", "instructor_name": "Dr. Smith", "student_groups": ["G1", "G4"], "locked": false, "type": "math"},
+            {"id": "4", "course_id": "MATH201", "course_name": "Calculus II", "session": 2, "room_id": "R102", "time_slot": "THU_11_12", "instructor_id": "I002", "instructor_name": "Prof. Johnson", "student_groups": ["G1", "G4"], "locked": false, "type": "math"},
+            {"id": "5", "course_id": "PHYS301", "course_name": "Quantum Physics", "session": 1, "room_id": "LAB101", "time_slot": "MON_15_17", "instructor_id": "I003", "instructor_name": "Dr. Brown", "student_groups": ["G3"], "locked": false, "type": "physics"},
+            {"id": "6", "course_id": "PHYS301", "course_name": "Quantum Physics", "session": 2, "room_id": "R101", "time_slot": "WED_09_10:30", "instructor_id": "I003", "instructor_name": "Dr. Brown", "student_groups": ["G3"], "locked": false, "type": "physics"}
         ];
         
         buildScheduleGrid();
@@ -853,14 +1005,19 @@ function createGridElement(tag, className, content = '') {
 function createSessionBlock(session) {
     const block = document.createElement('div');
     block.className = 'session-block draggable';
+    block.dataset.id = session.id;
+    block.dataset.type = session.type || 'cs'; // Default type for color
+
     // Add conflicts for sessions that conflict (instructor double-booked)
-    if (session.id === '1' || session.id === '3' || session.id === '6') {
+    const isConflict = (session.id === '1' || session.id === '3' || session.id === '6');
+    if (isConflict) {
         block.classList.add('conflict');
     }
-    block.dataset.id = session.id;
+
     block.draggable = true;
     
     block.innerHTML = `
+        ${isConflict ? '<div class="conflict-badge"></div>' : ''}
         <div class="session-header">${session.course_name} S${session.session}</div>
         <div class="session-details">${session.instructor_name} | ${session.student_groups.join(', ')}</div>
         <div class="session-actions">
@@ -1055,8 +1212,18 @@ function detectAndUpdateConflicts() {
     // Update conflict highlighting
     document.querySelectorAll('.session-block').forEach(block => {
         block.classList.remove('conflict');
+        // Remove badge if exists
+        const badge = block.querySelector('.conflict-badge');
+        if (badge) badge.remove();
+
         if (conflicts.has(block.dataset.id)) {
             block.classList.add('conflict');
+            // Add badge
+            if (!block.querySelector('.conflict-badge')) {
+                const newBadge = document.createElement('div');
+                newBadge.className = 'conflict-badge';
+                block.prepend(newBadge);
+            }
         }
     });
     
@@ -1089,6 +1256,7 @@ function resetSchedule() {
 // Application Initialization
 document.addEventListener('DOMContentLoaded', () => {
     // Initialize all components
+    initUI(); // New UI features
     initTabNavigation();
     initUploadTab();
     initConfigureTab();

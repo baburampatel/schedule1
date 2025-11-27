@@ -1,9 +1,15 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Conflict-Free Summer Term Scheduler</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Merriweather:wght@400;700&display=swap" rel="stylesheet">
+
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -14,6 +20,18 @@
             <div class="container">
                 <h1>Conflict-Free Summer Term Scheduler</h1>
                 <p class="subtitle">Intelligent Academic Schedule Optimization System</p>
+
+                <div class="header-controls">
+                    <button class="btn btn--outline btn--sm" id="compact-mode-toggle" title="Toggle Compact Mode">
+                        Compact
+                    </button>
+                    <button class="btn btn--secondary btn--icon-only" id="theme-toggle" title="Switch Theme" aria-label="Switch Theme">
+                        <span class="icon">🌙</span>
+                    </button>
+                    <button class="btn btn--secondary btn--icon-only" id="shortcuts-toggle" title="Keyboard Shortcuts" aria-label="Keyboard Shortcuts">
+                        ?
+                    </button>
+                </div>
             </div>
         </header>
 
@@ -294,6 +312,13 @@
                             <div class="card__header">
                                 <h2>Schedule Visualization</h2>
                                 <div class="view-controls">
+                                    <!-- Quick Filters Injection -->
+                                    <div class="quick-filters" style="margin-right: 12px; display: inline-flex; gap: 8px;">
+                                        <button class="btn btn--sm btn--outline active" data-filter="all">All</button>
+                                        <button class="btn btn--sm btn--outline" data-filter="CS">CS</button>
+                                        <button class="btn btn--sm btn--outline" data-filter="MATH">Math</button>
+                                        <button class="btn btn--sm btn--outline" data-filter="PHYS">Phys</button>
+                                    </div>
                                     <select id="view-type" class="form-control">
                                         <option value="room">Room Timetable</option>
                                         <option value="instructor">Instructor Schedule</option>
@@ -636,11 +661,15 @@
                                     <button class="btn btn--primary" id="load-sample-schedule">
                                         <span class="btn-icon">📋</span> Load Sample Schedule
                                     </button>
-                                    <button class="btn btn--secondary" id="undo-edit" disabled>
-                                        <span class="btn-icon">↶</span> Undo
+                                    <!-- Visual Affordance for Undo/Redo -->
+                                    <button class="btn btn--secondary btn--icon-only" id="undo-edit" disabled title="Undo">
+                                        ↺
+                                    </button>
+                                    <button class="btn btn--secondary btn--icon-only" id="redo-edit" disabled title="Redo (Not implemented)">
+                                        ↻
                                     </button>
                                     <button class="btn btn--outline" id="reset-schedule">
-                                        <span class="btn-icon">↻</span> Reset
+                                        Reset
                                     </button>
                                 </div>
                             </div>
@@ -701,6 +730,42 @@
                 <p id="loading-message">Please wait while we process your request</p>
             </div>
         </div>
+
+        <!-- Export Preview Modal -->
+        <div id="export-preview-modal" class="modal hidden">
+            <div class="modal-backdrop"></div>
+            <div class="modal-content">
+                <h3>Export Preview</h3>
+                <p>You are about to export the current schedule.</p>
+                <div class="export-preview-stats" style="margin: 20px 0; background: var(--bg-surface-raised); padding: 10px; border-radius: 8px;">
+                     <!-- Stats injected via JS -->
+                     <p>Total Sessions: <strong id="preview-total">0</strong></p>
+                     <p>Conflicts: <strong id="preview-conflicts" style="color: var(--error)">0</strong></p>
+                </div>
+                <div class="modal-actions" style="display: flex; gap: 10px; justify-content: center;">
+                    <button class="btn btn--secondary" id="cancel-export">Cancel</button>
+                    <button class="btn btn--primary" id="confirm-export">Confirm Download</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Keyboard Shortcuts Modal -->
+        <div id="shortcuts-modal" class="modal hidden">
+            <div class="modal-backdrop" onclick="document.getElementById('shortcuts-modal').classList.add('hidden')"></div>
+            <div class="modal-content" style="max-width: 500px; text-align: left;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
+                    <h3>Keyboard Shortcuts</h3>
+                    <button class="btn btn--icon-only btn--sm btn--outline" onclick="document.getElementById('shortcuts-modal').classList.add('hidden')">×</button>
+                </div>
+                <div class="shortcuts-list" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div><kbd>?</kbd> Show this help</div>
+                    <div><kbd>Esc</kbd> Close Modals</div>
+                    <div><kbd>Ctrl</kbd> + <kbd>Z</kbd> Undo</div>
+                    <div><kbd>T</kbd> Toggle Theme</div>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <script src="app.js"></script>

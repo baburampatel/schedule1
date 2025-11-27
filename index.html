@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,699 +8,299 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-    <div id="app">
-        <!-- Header -->
-        <header class="header">
-            <div class="container">
-                <h1>Conflict-Free Summer Term Scheduler</h1>
-                <p class="subtitle">Intelligent Academic Schedule Optimization System</p>
+    <div class="dashboard-container">
+        <!-- LEFT SIDEBAR: Filters, Data, Settings -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-text">Scheduler Pro</div>
+                <p class="text-muted text-sm version-text">v2.0</p>
             </div>
-        </header>
 
-        <!-- Main Navigation -->
-        <nav class="nav-tabs">
-            <div class="container">
-                <button class="nav-tab active" data-tab="upload">Upload Data</button>
-                <button class="nav-tab" data-tab="configure">Configure</button>
-                <button class="nav-tab" data-tab="scheduler">Scheduler</button>
-                <button class="nav-tab" data-tab="visualize">Visualize</button>
-                <button class="nav-tab" data-tab="export">Export</button>
-                <button class="nav-tab" data-tab="editor">Editor</button>
+            <!-- Data Sources -->
+            <div class="card">
+                <div class="card-header">
+                    <span>Data Sources</span>
+                </div>
+                <div class="card-body">
+                    <button id="load-sample-data" class="btn btn-secondary btn-sm full-width mb-8">Load Sample Data</button>
+
+                    <div class="form-group">
+                        <label class="form-label">Upload Data</label>
+                        <div class="upload-controls">
+                            <input type="file" id="courses-file" hidden accept=".csv">
+                            <button onclick="document.getElementById('courses-file').click()" class="btn btn-secondary btn-sm flex-start">
+                                <span class="btn-icon">📚</span> Courses
+                            </button>
+                            <span id="courses-status" class="text-muted text-sm status-text">Not uploaded</span>
+
+                            <input type="file" id="instructors-file" hidden accept=".csv">
+                            <button onclick="document.getElementById('instructors-file').click()" class="btn btn-secondary btn-sm flex-start">
+                                <span class="btn-icon">👨‍🏫</span> Instructors
+                            </button>
+                            <span id="instructors-status" class="text-muted text-sm status-text">Not uploaded</span>
+
+                            <input type="file" id="rooms-file" hidden accept=".csv">
+                            <button onclick="document.getElementById('rooms-file').click()" class="btn btn-secondary btn-sm flex-start">
+                                <span class="btn-icon">🏫</span> Rooms
+                            </button>
+                            <span id="rooms-status" class="text-muted text-sm status-text">Not uploaded</span>
+                        </div>
+                    </div>
+
+                    <div id="data-summary" class="hidden mt-4">
+                        <div class="summary-header">Summary</div>
+                        <div class="flex-between text-sm text-muted"><span>Courses:</span> <span id="courses-count">0</span></div>
+                        <div class="flex-between text-sm text-muted"><span>Instructors:</span> <span id="instructors-count">0</span></div>
+                        <div class="flex-between text-sm text-muted"><span>Rooms:</span> <span id="rooms-count">0</span></div>
+                        <div class="flex-between text-sm text-muted"><span>Groups:</span> <span id="groups-count">0</span></div>
+                    </div>
+                </div>
             </div>
-        </nav>
 
-        <!-- Tab Content -->
+            <!-- Constraint Chips -->
+            <div class="card">
+                <div class="card-header">
+                    <span>Constraints</span>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted text-sm mb-8">Drag to add constraints</p>
+                    <div id="constraint-chips" class="chips-container">
+                        <!-- Chips will be rendered here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Algorithm Settings -->
+            <div class="card">
+                <div class="card-header flex-between">
+                    <span>Optimizer</span>
+                    <button id="toggle-config" class="btn btn-secondary btn-sm compact-btn">Tune</button>
+                </div>
+                <div class="card-body hidden" id="config-panel">
+                    <div class="form-group">
+                        <label class="form-label">Preset</label>
+                        <select id="optimization-preset" class="form-control compact-input">
+                            <option value="balanced">Balanced</option>
+                            <option value="fast">Fast</option>
+                            <option value="optimal">Optimal</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Generations: <span id="generations-val">200</span></label>
+                        <input type="range" id="generations" min="50" max="1000" step="50" value="200" class="range-input">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Mutation Rate: <span id="mutation-rate-value">0.15</span></label>
+                        <input type="range" id="mutation-rate" min="0.01" max="0.5" step="0.01" value="0.15" class="range-input">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Export -->
+            <div class="card">
+                <div class="card-header">Export</div>
+                <div class="card-body grid-2-col">
+                    <button id="export-csv" class="btn btn-secondary btn-sm">CSV</button>
+                    <button id="export-json" class="btn btn-secondary btn-sm">JSON</button>
+                    <button id="export-ics" class="btn btn-secondary btn-sm">ICS</button>
+                    <button id="export-pdf" class="btn btn-secondary btn-sm">PDF</button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT: Calendar & Controls -->
         <main class="main-content">
-            <div class="container">
-                
-                <!-- Upload Data Tab -->
-                <div id="upload-tab" class="tab-content active">
-                    <div class="upload-grid">
-                        <div class="card">
-                            <div class="card__header">
-                                <h2>Data Upload</h2>
-                                <p class="text-secondary">Upload CSV files or load sample data to get started</p>
-                            </div>
-                            <div class="card__body">
-                                <div class="upload-section">
-                                    <button class="btn btn--primary btn--lg" id="load-sample-data">
-                                        <span class="btn-icon">📊</span> Load Sample Data
-                                    </button>
-                                    <p class="upload-note">Click to load pre-configured sample data for testing</p>
-                                </div>
+            <!-- Sticky Optimizer Bar -->
+            <div class="optimizer-bar">
+                <div class="optimizer-controls">
+                    <button id="start-optimization" class="btn btn-primary" disabled>
+                        <span class="btn-icon">🚀</span> Run Optimizer
+                    </button>
+                    <button id="stop-optimization" class="btn btn-secondary" disabled>
+                        <span class="btn-icon">⏹️</span> Stop
+                    </button>
+                    <div class="vertical-divider"></div>
+                    <button id="undo-btn" class="btn btn-secondary" disabled title="Undo (Ctrl+Z)">
+                        <span>↶</span>
+                    </button>
+                     <button id="redo-btn" class="btn btn-secondary" disabled title="Redo (Ctrl+Y)">
+                        <span>↷</span>
+                    </button>
+                </div>
 
-                                <div class="upload-divider">
-                                    <span>OR</span>
-                                </div>
+                <div class="optimizer-actions-right">
+                    <!-- Theme & Compact Toggles -->
+                    <button id="compact-toggle" class="theme-toggle" title="Toggle Compact Mode">
+                        ⚏
+                    </button>
+                    <button id="theme-toggle" class="theme-toggle" title="Toggle Theme">
+                        🌙
+                    </button>
+                    <button id="shortcuts-help-btn" class="theme-toggle" title="Keyboard Shortcuts">
+                        ?
+                    </button>
 
-                                <div class="upload-areas">
-                                    <div class="upload-item">
-                                        <div class="upload-area" data-type="courses">
-                                            <div class="upload-icon">📚</div>
-                                            <h3>Courses CSV</h3>
-                                            <p>Upload course information</p>
-                                            <input type="file" id="courses-file" accept=".csv" style="display: none;">
-                                            <button class="btn btn--secondary" onclick="document.getElementById('courses-file').click()">Choose File</button>
-                                        </div>
-                                        <div class="upload-status" id="courses-status">Not uploaded</div>
-                                    </div>
+                    <div class="vertical-divider"></div>
 
-                                    <div class="upload-item">
-                                        <div class="upload-area" data-type="instructors">
-                                            <div class="upload-icon">👨‍🏫</div>
-                                            <h3>Instructors CSV</h3>
-                                            <p>Upload instructor data</p>
-                                            <input type="file" id="instructors-file" accept=".csv" style="display: none;">
-                                            <button class="btn btn--secondary" onclick="document.getElementById('instructors-file').click()">Choose File</button>
-                                        </div>
-                                        <div class="upload-status" id="instructors-status">Not uploaded</div>
-                                    </div>
-
-                                    <div class="upload-item">
-                                        <div class="upload-area" data-type="rooms">
-                                            <div class="upload-icon">🏫</div>
-                                            <h3>Rooms CSV</h3>
-                                            <p>Upload room information</p>
-                                            <input type="file" id="rooms-file" accept=".csv" style="display: none;">
-                                            <button class="btn btn--secondary" onclick="document.getElementById('rooms-file').click()">Choose File</button>
-                                        </div>
-                                        <div class="upload-status" id="rooms-status">Not uploaded</div>
-                                    </div>
-
-                                    <div class="upload-item">
-                                        <div class="upload-area" data-type="groups">
-                                            <div class="upload-icon">👥</div>
-                                            <h3>Student Groups CSV</h3>
-                                            <p>Upload student group data</p>
-                                            <input type="file" id="groups-file" accept=".csv" style="display: none;">
-                                            <button class="btn btn--secondary" onclick="document.getElementById('groups-file').click()">Choose File</button>
-                                        </div>
-                                        <div class="upload-status" id="groups-status">Not uploaded</div>
-                                    </div>
-                                </div>
-
-                                <div class="data-summary" id="data-summary" style="display: none;">
-                                    <h3>Data Summary</h3>
-                                    <div class="summary-grid">
-                                        <div class="summary-item">
-                                            <span class="summary-label">Courses:</span>
-                                            <span class="summary-value" id="courses-count">0</span>
-                                        </div>
-                                        <div class="summary-item">
-                                            <span class="summary-label">Instructors:</span>
-                                            <span class="summary-value" id="instructors-count">0</span>
-                                        </div>
-                                        <div class="summary-item">
-                                            <span class="summary-label">Rooms:</span>
-                                            <span class="summary-value" id="rooms-count">0</span>
-                                        </div>
-                                        <div class="summary-item">
-                                            <span class="summary-label">Student Groups:</span>
-                                            <span class="summary-value" id="groups-count">0</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                    <div class="optimizer-stats">
+                        <div class="stat-badge">
+                            <span class="text-muted text-sm">Fitness</span>
+                            <strong id="final-fitness-score" class="text-primary">0.0</strong>
+                        </div>
+                        <div class="stat-badge border-error">
+                            <span class="text-muted text-sm">Hard Conflicts</span>
+                            <strong id="live-conflicts" class="text-error">0</strong>
+                        </div>
+                         <div class="stat-badge border-warning">
+                            <span class="text-muted text-sm">Soft Violations</span>
+                            <strong id="live-violations" class="text-warning">0</strong>
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <!-- Configure Tab -->
-                <div id="configure-tab" class="tab-content">
-                    <div class="configure-grid">
-                        <div class="card">
-                            <div class="card__header">
-                                <h2>Algorithm Configuration</h2>
-                                <div class="preset-controls">
-                                    <select id="optimization-preset" class="form-control">
-                                        <option value="balanced">Balanced (Recommended)</option>
-                                        <option value="fast">Fast</option>
-                                        <option value="optimal">Optimal</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="card__body">
-                                <div class="config-sections">
-                                    <div class="config-section">
-                                        <h3>Genetic Algorithm Parameters</h3>
-                                        <div class="form-group">
-                                            <label class="form-label" for="population-size">Population Size</label>
-                                            <input type="number" id="population-size" class="form-control" value="100" min="20" max="500">
-                                        </div>
-                                        <div class="form-group">
-                                            <label class="form-label" for="generations">Generations</label>
-                                            <input type="number" id="generations" class="form-control" value="200" min="50" max="1000">
-                                        </div>
-                                        <div class="form-group">
-                                            <label class="form-label" for="mutation-rate">Mutation Rate</label>
-                                            <input type="range" id="mutation-rate" class="form-control" min="0.01" max="0.5" step="0.01" value="0.15">
-                                            <span class="range-value" id="mutation-rate-value">0.15</span>
-                                        </div>
-                                        <div class="form-group">
-                                            <label class="form-label" for="crossover-rate">Crossover Rate</label>
-                                            <input type="range" id="crossover-rate" class="form-control" min="0.1" max="1.0" step="0.05" value="0.8">
-                                            <span class="range-value" id="crossover-rate-value">0.8</span>
-                                        </div>
-                                    </div>
+            <!-- Progress Bar -->
+            <div id="progress-section" class="hidden progress-container">
+                <div id="progress-fill" class="progress-bar"></div>
+            </div>
+            <div id="progress-text" class="text-sm text-muted hidden progress-label">Initializing...</div>
 
-                                    <div class="config-section">
-                                        <h3>Constraint Weights</h3>
-                                        <div class="form-group">
-                                            <label class="form-label" for="hard-constraint-weight">Hard Constraints</label>
-                                            <input type="range" id="hard-constraint-weight" class="form-control" min="1" max="10" step="1" value="10">
-                                            <span class="range-value" id="hard-constraint-weight-value">10</span>
-                                        </div>
-                                        <div class="form-group">
-                                            <label class="form-label" for="soft-constraint-weight">Soft Constraints</label>
-                                            <input type="range" id="soft-constraint-weight" class="form-control" min="0.1" max="5" step="0.1" value="1">
-                                            <span class="range-value" id="soft-constraint-weight-value">1</span>
-                                        </div>
-                                    </div>
+            <!-- Calendar Container -->
+            <div class="calendar-container">
+                <!-- Quick Filters -->
+                <div id="quick-filters" class="quick-filters hidden">
+                    <span class="text-sm text-muted filter-label">Filter:</span>
+                    <button class="filter-chip active" data-filter="all">All</button>
+                    <button class="filter-chip" data-filter="lectures">Lectures</button>
+                    <button class="filter-chip" data-filter="labs">Labs</button>
+                </div>
 
-                                    <div class="config-section">
-                                        <h3>Termination Criteria</h3>
-                                        <div class="form-group">
-                                            <label class="form-label" for="max-runtime">Max Runtime (minutes)</label>
-                                            <input type="number" id="max-runtime" class="form-control" value="10" min="1" max="60">
-                                        </div>
-                                        <div class="form-group">
-                                            <label class="form-label" for="target-fitness">Target Fitness</label>
-                                            <input type="number" id="target-fitness" class="form-control" value="95" min="50" max="100" step="0.1">
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="config-actions">
-                                    <button class="btn btn--secondary" id="reset-defaults">Reset to Defaults</button>
-                                    <button class="btn btn--primary" id="save-config">Save Configuration</button>
-                                </div>
-                            </div>
+                <div id="schedule-grid" class="timetable-week">
+                    <!-- Week View Grid will be injected here -->
+                    <div class="empty-state-container">
+                        <div class="empty-state-content">
+                            <div class="empty-state-icon">📅</div>
+                            <h3>No Schedule Loaded</h3>
+                            <p>Upload data and run the optimizer, or load sample data to begin.</p>
                         </div>
                     </div>
                 </div>
-
-                <!-- Scheduler Tab -->
-                <div id="scheduler-tab" class="tab-content">
-                    <div class="scheduler-grid">
-                        <div class="card">
-                            <div class="card__header">
-                                <h2>Schedule Optimization</h2>
-                                <div class="scheduler-controls">
-                                    <button class="btn btn--primary btn--lg" id="start-optimization" disabled>
-                                        <span class="btn-icon">🚀</span> Start Optimization
-                                    </button>
-                                    <button class="btn btn--secondary" id="stop-optimization" disabled>
-                                        <span class="btn-icon">⏹️</span> Stop
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="card__body">
-                                <!-- Progress Section -->
-                                <div class="progress-section" id="progress-section" style="display: none;">
-                                    <h3>Optimization Progress</h3>
-                                    <div class="progress-bar">
-                                        <div class="progress-fill" id="progress-fill"></div>
-                                    </div>
-                                    <div class="progress-info">
-                                        <span id="progress-text">Initializing...</span>
-                                        <span id="progress-percent">0%</span>
-                                    </div>
-                                    <div class="progress-metrics">
-                                        <div class="progress-metric">
-                                            <span>Generation:</span>
-                                            <span id="current-generation">0</span>
-                                        </div>
-                                        <div class="progress-metric">
-                                            <span>Best Fitness:</span>
-                                            <span id="current-fitness">0.0</span>
-                                        </div>
-                                        <div class="progress-metric">
-                                            <span>Runtime:</span>
-                                            <span id="runtime">00:00</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Results Section -->
-                                <div class="results-section" id="results-section" style="display: none;">
-                                    <h3>Optimization Results</h3>
-                                    <div class="metrics-grid">
-                                        <div class="metric-item conflict-metric">
-                                            <span class="metric-label">Hard Conflicts</span>
-                                            <span class="metric-value conflict-count" id="final-hard-conflicts">0</span>
-                                            <div class="metric-breakdown">
-                                                <div class="breakdown-item">Instructor: <span id="final-instructor-conflicts">0</span></div>
-                                                <div class="breakdown-item">Room: <span id="final-room-conflicts">0</span></div>
-                                                <div class="breakdown-item">Student: <span id="final-student-conflicts">0</span></div>
-                                            </div>
-                                        </div>
-                                        
-                                        <div class="metric-item violation-metric">
-                                            <span class="metric-label">Soft Violations</span>
-                                            <span class="metric-value violation-count" id="final-soft-violations">0</span>
-                                            <div class="metric-breakdown">
-                                                <div class="breakdown-item">Time Preference: <span id="final-time-violations">0</span></div>
-                                                <div class="breakdown-item">Instructor Preference: <span id="final-instructor-violations">0</span></div>
-                                            </div>
-                                        </div>
-                                        
-                                        <div class="metric-item">
-                                            <span class="metric-label">Final Fitness</span>
-                                            <span class="metric-value" id="final-fitness-score">0.0</span>
-                                        </div>
-                                        
-                                        <div class="metric-item">
-                                            <span class="metric-label">Status</span>
-                                            <span class="metric-value status--success" id="optimization-status">Ready</span>
-                                        </div>
-                                    </div>
-
-                                    <div class="results-actions">
-                                        <button class="btn btn--primary btn--lg" id="generate-schedule-table" style="display: none;">
-                                            <span class="btn-icon">📋</span> Generate Schedule Table
-                                        </button>
-                                        <button class="btn btn--secondary" id="view-details">View Details</button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Visualize Tab -->
-                <div id="visualize-tab" class="tab-content">
-                    <div class="visualize-grid">
-                        <div class="card">
-                            <div class="card__header">
-                                <h2>Schedule Visualization</h2>
-                                <div class="view-controls">
-                                    <select id="view-type" class="form-control">
-                                        <option value="room">Room Timetable</option>
-                                        <option value="instructor">Instructor Schedule</option>
-                                        <option value="student">Student Group Schedule</option>
-                                    </select>
-                                    <button class="btn btn--secondary" id="refresh-view">
-                                        <span class="btn-icon">🔄</span> Refresh
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="card__body">
-                                <div class="timetable-container" id="timetable-container">
-                                    <div id="room-view" class="timetable-view">
-                                        <h3>Room Timetable</h3>
-                                        <table class="timetable">
-                                            <thead>
-                                                <tr>
-                                                    <th>Time</th>
-                                                    <th>R101 (Engineering)</th>
-                                                    <th>R102 (Engineering)</th>
-                                                    <th>R201 (Science)</th>
-                                                    <th>LAB101 (Science)</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody id="room-timetable-body">
-                                                <tr>
-                                                    <td class="time-slot">MON 09:00-10:30</td>
-                                                    <td class="occupied-slot cs">
-                                                        <div class="session-info">
-                                                            <div class="course-name">CS101-1</div>
-                                                            <div class="instructor-name">Dr. Smith</div>
-                                                            <div class="student-groups">G1, G2</div>
-                                                        </div>
-                                                    </td>
-                                                    <td class="empty-slot"></td>
-                                                    <td class="empty-slot"></td>
-                                                    <td class="empty-slot"></td>
-                                                </tr>
-                                                <tr>
-                                                    <td class="time-slot">TUE 11:00-12:00</td>
-                                                    <td class="empty-slot"></td>
-                                                    <td class="occupied-slot math">
-                                                        <div class="session-info">
-                                                            <div class="course-name">MATH201-1</div>
-                                                            <div class="instructor-name">Prof. Johnson</div>
-                                                            <div class="student-groups">G1, G4</div>
-                                                        </div>
-                                                    </td>
-                                                    <td class="empty-slot"></td>
-                                                    <td class="empty-slot"></td>
-                                                </tr>
-                                                <tr>
-                                                    <td class="time-slot">WED 09:00-10:30</td>
-                                                    <td class="occupied-slot cs">
-                                                        <div class="session-info">
-                                                            <div class="course-name">CS101-2</div>
-                                                            <div class="instructor-name">Dr. Smith</div>
-                                                            <div class="student-groups">G1, G2</div>
-                                                        </div>
-                                                    </td>
-                                                    <td class="empty-slot"></td>
-                                                    <td class="empty-slot"></td>
-                                                    <td class="empty-slot"></td>
-                                                </tr>
-                                                <tr>
-                                                    <td class="time-slot">MON 15:00-17:00</td>
-                                                    <td class="empty-slot"></td>
-                                                    <td class="empty-slot"></td>
-                                                    <td class="empty-slot"></td>
-                                                    <td class="occupied-slot physics">
-                                                        <div class="session-info">
-                                                            <div class="course-name">PHYS301-1</div>
-                                                            <div class="instructor-name">Dr. Brown</div>
-                                                            <div class="student-groups">G3</div>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
-
-                                    <div id="instructor-view" class="timetable-view" style="display: none;">
-                                        <h3>Instructor Schedule</h3>
-                                        <div class="instructor-schedules">
-                                            <div class="instructor-card">
-                                                <h4>Dr. Smith (Computer Science)</h4>
-                                                <div class="instructor-sessions">
-                                                    <div class="session-item cs">
-                                                        <span class="session-time">MON 09:00-10:30</span>
-                                                        <span class="session-course">CS101 Session 1</span>
-                                                        <span class="session-room">R101</span>
-                                                    </div>
-                                                    <div class="session-item cs">
-                                                        <span class="session-time">WED 09:00-10:30</span>
-                                                        <span class="session-course">CS101 Session 2</span>
-                                                        <span class="session-room">R101</span>
-                                                    </div>
-                                                    <div class="session-item cs">
-                                                        <span class="session-time">FRI 09:00-10:30</span>
-                                                        <span class="session-course">CS101 Session 3</span>
-                                                        <span class="session-room">R101</span>
-                                                    </div>
-                                                </div>
-                                                <div class="workload-info">Load: 3 sessions/week</div>
-                                            </div>
-                                            <div class="instructor-card">
-                                                <h4>Prof. Johnson (Mathematics)</h4>
-                                                <div class="instructor-sessions">
-                                                    <div class="session-item math">
-                                                        <span class="session-time">TUE 11:00-12:00</span>
-                                                        <span class="session-course">MATH201 Session 1</span>
-                                                        <span class="session-room">R102</span>
-                                                    </div>
-                                                    <div class="session-item math">
-                                                        <span class="session-time">THU 11:00-12:00</span>
-                                                        <span class="session-course">MATH201 Session 2</span>
-                                                        <span class="session-room">R102</span>
-                                                    </div>
-                                                </div>
-                                                <div class="workload-info">Load: 2 sessions/week</div>
-                                            </div>
-                                            <div class="instructor-card">
-                                                <h4>Dr. Brown (Physics)</h4>
-                                                <div class="instructor-sessions">
-                                                    <div class="session-item physics">
-                                                        <span class="session-time">MON 15:00-17:00</span>
-                                                        <span class="session-course">PHYS301 Session 1</span>
-                                                        <span class="session-room">LAB101</span>
-                                                    </div>
-                                                    <div class="session-item physics">
-                                                        <span class="session-time">WED 15:00-17:00</span>
-                                                        <span class="session-course">PHYS301 Session 2</span>
-                                                        <span class="session-room">LAB101</span>
-                                                    </div>
-                                                </div>
-                                                <div class="workload-info">Load: 2 sessions/week</div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div id="student-view" class="timetable-view" style="display: none;">
-                                        <h3>Student Group Schedules</h3>
-                                        <div class="student-schedules">
-                                            <div class="student-group-card">
-                                                <h4>G1 - Computer Science Year 1</h4>
-                                                <table class="student-timetable">
-                                                    <thead>
-                                                        <tr>
-                                                            <th>Monday</th>
-                                                            <th>Tuesday</th>
-                                                            <th>Wednesday</th>
-                                                            <th>Thursday</th>
-                                                            <th>Friday</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        <tr>
-                                                            <td>
-                                                                <div class="student-session cs">
-                                                                    <div class="session-time">09:00-10:30</div>
-                                                                    <div class="session-name">CS101</div>
-                                                                    <div class="session-location">R101</div>
-                                                                </div>
-                                                            </td>
-                                                            <td>
-                                                                <div class="student-session math">
-                                                                    <div class="session-time">11:00-12:00</div>
-                                                                    <div class="session-name">MATH201</div>
-                                                                    <div class="session-location">R102</div>
-                                                                </div>
-                                                            </td>
-                                                            <td>
-                                                                <div class="student-session cs">
-                                                                    <div class="session-time">09:00-10:30</div>
-                                                                    <div class="session-name">CS101</div>
-                                                                    <div class="session-location">R101</div>
-                                                                </div>
-                                                            </td>
-                                                            <td>
-                                                                <div class="student-session math">
-                                                                    <div class="session-time">11:00-12:00</div>
-                                                                    <div class="session-name">MATH201</div>
-                                                                    <div class="session-location">R102</div>
-                                                                </div>
-                                                            </td>
-                                                            <td>
-                                                                <div class="student-session cs">
-                                                                    <div class="session-time">09:00-10:30</div>
-                                                                    <div class="session-name">CS101</div>
-                                                                    <div class="session-location">R101</div>
-                                                                </div>
-                                                            </td>
-                                                        </tr>
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                            
-                                            <div class="student-group-card">
-                                                <h4>G3 - Physics Graduate</h4>
-                                                <table class="student-timetable">
-                                                    <thead>
-                                                        <tr>
-                                                            <th>Monday</th>
-                                                            <th>Tuesday</th>
-                                                            <th>Wednesday</th>
-                                                            <th>Thursday</th>
-                                                            <th>Friday</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        <tr>
-                                                            <td>
-                                                                <div class="student-session physics">
-                                                                    <div class="session-time">15:00-17:00</div>
-                                                                    <div class="session-name">PHYS301</div>
-                                                                    <div class="session-location">LAB101</div>
-                                                                </div>
-                                                            </td>
-                                                            <td class="empty-day">No classes</td>
-                                                            <td>
-                                                                <div class="student-session physics">
-                                                                    <div class="session-time">15:00-17:00</div>
-                                                                    <div class="session-name">PHYS301</div>
-                                                                    <div class="session-location">LAB101</div>
-                                                                </div>
-                                                            </td>
-                                                            <td class="empty-day">No classes</td>
-                                                            <td class="empty-day">No classes</td>
-                                                        </tr>
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Charts Section -->
-                                <div class="charts-section" id="charts-section">
-                                    <h3>Analytics Charts</h3>
-                                    <div class="charts-grid">
-                                        <div class="chart-card">
-                                            <h4>Room Utilization</h4>
-                                            <div class="chart-container" style="position: relative; height: 300px;">
-                                                <canvas id="room-utilization-chart"></canvas>
-                                            </div>
-                                        </div>
-                                        <div class="chart-card">
-                                            <h4>Instructor Workload</h4>
-                                            <div class="chart-container" style="position: relative; height: 300px;">
-                                                <canvas id="instructor-workload-chart"></canvas>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Export Tab -->
-                <div id="export-tab" class="tab-content">
-                    <div class="export-grid">
-                        <div class="card">
-                            <div class="card__header">
-                                <h2>Export Schedule</h2>
-                                <p class="text-secondary">Download your optimized schedule in various formats</p>
-                            </div>
-                            <div class="card__body">
-                                <div class="export-options">
-                                    <div class="export-option">
-                                        <div class="export-icon">📄</div>
-                                        <h3>CSV Format</h3>
-                                        <p>Spreadsheet compatible format for further analysis</p>
-                                        <button class="btn btn--primary" id="export-csv">
-                                            <span class="btn-icon">⬇️</span> Download CSV
-                                        </button>
-                                    </div>
-
-                                    <div class="export-option">
-                                        <div class="export-icon">📋</div>
-                                        <h3>PDF Report</h3>
-                                        <p>Complete schedule report with conflict analysis</p>
-                                        <button class="btn btn--primary" id="export-pdf">
-                                            <span class="btn-icon">⬇️</span> Download PDF
-                                        </button>
-                                    </div>
-
-                                    <div class="export-option">
-                                        <div class="export-icon">📅</div>
-                                        <h3>ICS Calendar</h3>
-                                        <p>Import into calendar applications</p>
-                                        <button class="btn btn--primary" id="export-ics">
-                                            <span class="btn-icon">⬇️</span> Download ICS
-                                        </button>
-                                    </div>
-
-                                    <div class="export-option">
-                                        <div class="export-icon">💾</div>
-                                        <h3>JSON Data</h3>
-                                        <p>Raw data format for system integration</p>
-                                        <button class="btn btn--primary" id="export-json">
-                                            <span class="btn-icon">⬇️</span> Download JSON
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div class="export-summary" id="export-summary" style="display: none;">
-                                    <h3>Export Summary</h3>
-                                    <div class="summary-stats">
-                                        <div class="stat-item">
-                                            <span class="stat-label">Total Sessions:</span>
-                                            <span class="stat-value" id="export-total-sessions">0</span>
-                                        </div>
-                                        <div class="stat-item">
-                                            <span class="stat-label">Hard Conflicts:</span>
-                                            <span class="stat-value" id="export-hard-conflicts">0</span>
-                                        </div>
-                                        <div class="stat-item">
-                                            <span class="stat-label">Soft Violations:</span>
-                                            <span class="stat-value" id="export-soft-violations">0</span>
-                                        </div>
-                                        <div class="stat-item">
-                                            <span class="stat-label">Schedule Fitness:</span>
-                                            <span class="stat-value" id="export-fitness">0</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Editor Tab -->
-                <div id="editor-tab" class="tab-content">
-                    <div class="editor-header">
-                        <div class="card">
-                            <div class="card__header">
-                                <h2>Manual Schedule Editor</h2>
-                                <div class="editor-controls">
-                                    <button class="btn btn--primary" id="load-sample-schedule">
-                                        <span class="btn-icon">📋</span> Load Sample Schedule
-                                    </button>
-                                    <button class="btn btn--secondary" id="undo-edit" disabled>
-                                        <span class="btn-icon">↶</span> Undo
-                                    </button>
-                                    <button class="btn btn--outline" id="reset-schedule">
-                                        <span class="btn-icon">↻</span> Reset
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="card__body">
-                                <!-- Live Metrics in Editor -->
-                                <div class="editor-metrics">
-                                    <div class="live-metric conflict">
-                                        <span class="live-label">Hard Conflicts:</span>
-                                        <span class="live-value" id="live-conflicts">2</span>
-                                    </div>
-                                    <div class="live-metric violation">
-                                        <span class="live-label">Soft Violations:</span>
-                                        <span class="live-value" id="live-violations">5</span>
-                                    </div>
-                                    <div class="edit-status" id="edit-status">
-                                        <span class="status-indicator ready"></span>
-                                        <span class="status-text">Click "Load Sample Schedule" to begin editing</span>
-                                    </div>
-                                </div>
-
-                                <div class="editor-instructions">
-                                    <p><strong>Instructions:</strong> Load a sample schedule and drag session blocks to different time slots or rooms. Real-time conflict detection will highlight issues immediately.</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Drag-and-Drop Schedule Grid -->
-                    <div class="card" id="schedule-editor-card" style="display: none;">
-                        <div class="card__header">
-                            <h3>Interactive Schedule Grid</h3>
-                        </div>
-                        <div class="card__body">
-                            <div class="schedule-grid-container">
-                                <div class="schedule-grid" id="schedule-grid">
-                                    <!-- Grid will be populated by JavaScript -->
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
             </div>
         </main>
 
-        <!-- Toast Notifications -->
-        <div id="toast-container" class="toast-container"></div>
+        <!-- RIGHT INSPECTOR: Details -->
+        <aside class="inspector">
+            <div id="inspector-content">
+                <div class="inspector-empty">
+                    <p>Select a session to view details</p>
+                </div>
+            </div>
 
-        <!-- Drag Feedback -->
-        <div id="drag-feedback" class="drag-feedback hidden"></div>
+            <!-- Hidden template for inspector details -->
+            <div id="inspector-template" class="hidden">
+                <div class="inspector-header mb-24">
+                    <h2 id="inspect-course-name">Course Name</h2>
+                    <p class="text-muted" id="inspect-session-id">Session 1</p>
+                </div>
 
-        <!-- Loading Modal -->
-        <div id="loading-modal" class="modal hidden">
-            <div class="modal-backdrop"></div>
-            <div class="modal-content">
-                <div class="loading-spinner"></div>
-                <h3>Processing...</h3>
-                <p id="loading-message">Please wait while we process your request</p>
+                <div class="card">
+                    <div class="card-header">Details</div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label class="form-label">Instructor</label>
+                            <div id="inspect-instructor" class="chip chip-instructor fit-content">Name</div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Room</label>
+                            <div id="inspect-room" class="chip chip-room fit-content">Room</div>
+                        </div>
+                         <div class="form-group">
+                            <label class="form-label">Groups</label>
+                            <div id="inspect-groups">
+                                <!-- Groups chips -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">Status</div>
+                    <div class="card-body">
+                        <div id="inspect-alerts">
+                            <!-- Alerts injected here -->
+                        </div>
+                        <div class="mt-4">
+                            <button id="inspect-lock-btn" class="btn btn-secondary btn-sm full-width">
+                                🔒 Lock Session
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                 <!-- Chart Placeholder -->
+                <div class="card">
+                    <div class="card-header">Room Utilization</div>
+                    <div class="card-body chart-container">
+                         <canvas id="room-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Export Preview Modal -->
+    <div id="export-modal" class="modal">
+        <div class="modal-content">
+            <h2>Export Preview</h2>
+            <p>Review the schedule summary before exporting.</p>
+            <div class="preview-box">
+                <pre id="export-preview-content" class="preview-text"></pre>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="document.getElementById('export-modal').classList.remove('active')">Cancel</button>
+                <button class="btn btn-primary" id="confirm-export-btn">Download</button>
             </div>
         </div>
+    </div>
+
+    <!-- Keyboard Shortcuts Modal -->
+    <div id="shortcuts-modal" class="modal">
+        <div class="modal-content">
+            <h2>Keyboard Shortcuts</h2>
+            <div class="shortcuts-grid">
+                <div class="shortcut-header">Action</div>
+                <div class="shortcut-header">Shortcut</div>
+
+                <div>Undo</div>
+                <div><kbd>Ctrl</kbd> + <kbd>Z</kbd></div>
+
+                <div>Redo</div>
+                <div><kbd>Ctrl</kbd> + <kbd>Y</kbd></div>
+
+                <div>Run Optimizer</div>
+                <div><kbd>R</kbd></div>
+
+                <div>Toggle Compact</div>
+                <div><kbd>C</kbd></div>
+            </div>
+             <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="document.getElementById('shortcuts-modal').classList.remove('active')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Drag Feedback -->
+    <div id="drag-feedback" class="event-block hidden drag-proxy">
+        <!-- Content filled by JS -->
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-modal" class="loading-overlay hidden">
+        <div class="loading-spinner"></div>
+        <p id="loading-message" class="loading-text">Processing...</p>
     </div>
 
     <script src="app.js"></script>
